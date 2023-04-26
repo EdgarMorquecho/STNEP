@@ -1,0 +1,259 @@
+---------------------------
+ Change history for TSPOPF
+---------------------------
+
+Version:    5.1
+
+TSPOPF for MATPOWER
+$Id: CHANGES.txt 2645 2015-03-11 20:53:01Z ray $
+Copyright (c) 2007-2014 by Power System Engineering Research Center (PSERC)
+See http://www.pserc.cornell.edu/tspopf/ for more info.
+
+
+Changes since 5.0
+-----------------
+
+3/12/15
+    - Released version 5.1 (no substantive changes from 5.0).
+
+2/10/15
+    - Replaced Inf*ones(...) with Inf(...) everywhere in tspopf_solver.m.
+
+Changes since 5.0b1
+-------------------
+
+12/17/14
+    - Released version 5.0 (no changes from 5.0b1).
+
+
+Changes since 4.1
+-----------------
+
+7/1/14
+    - Released version 5.0b1.
+
+1/15/14
+    - Added mpoption_info_tspopf() to define options for this
+      optional package.
+
+12/10/13
+    - Updated for new MATPOWER options implementation based on options
+      struct instead of options vector.
+
+12/13/12
+    - Minor modification to make it more robust in cases where some
+      parameters are Inf (e.g. limits for dummy gen representing DC line).
+
+5/3/12
+    - Updated for compatibility with new @opf_model class based
+      on the new @opt_model class, which supports indexed named sets of
+      variables, constraints and costs.
+
+
+Changes since 4.0
+-----------------
+
+11/11/11
+    - Released version 4.1.
+
+5/5/10
+    - Added RETURN_RAW_DER option to control when OPF solver returns
+      constraint, Jacobian and objective function gradient and Hessian
+      information.
+
+3/10/10
+    - Added optional input arg to *ver() functions to trigger return
+      of entire version struct with Name, Version, Release and Date
+      just like MATLAB's ver() function.
+
+2/23/10
+    - For @opf_model, removed get_var_N(), get_lin_N() and get_nln_N()
+      methods, replaced with single getN() method.
+
+
+Changes since 1.0
+-------------------
+
+12/24/09
+    - Released version 4.0 (skipped 2.x and 3.x to sync with MATPOWER).
+
+11/4/09
+    - Removed unnecessary 'return' statement at end of all M-files. If
+      anything it should be an 'end' statement, but even that is
+      optional, so we just let functions get terminated by the
+      end-of-file or another function declaration.
+
+10/23/09
+    - Added build 17 for 64-bit Windows.
+
+10/13/09
+    - Added build 17 for 64-bit Linux.
+
+9/22/09
+    - Build 17, fixes for 64-bit compatibility only. Added build 17
+      for 64-bit Intel Mac OS X.
+
+6/4/09
+    - Build 16a (PPC Mac only), fixed that incorrect mexopts file
+      was used for Build 16 for PPC Mac.
+
+4/21/09
+    - Build 16
+    - Fixed bug in bug in matlsolvSPMATRIX() where it claimed success
+      even when the problem was so ill-conditioned that it returned
+      NaN's in the solution vector.
+
+3/31/09
+    - Build 15
+    - Updated date & version number (4.0).
+
+3/30/09
+    - Fixed bug in addSPMATRIX() where it could try to copy
+      a matrix onto itself, resulting in a failed assertion.
+    - Cleaned up printing of progress in IPM in OPT.c.
+
+3/16/09
+    - Since equal upper and lower bounds on a variable are not
+      properly handled by the MEX file as an equality constraint,
+      these bounds are relaxed and added as additional linear
+      equality constraints, which are handled correctly by the MEX
+      function.
+    - Modified SPMATRIX2MATLABFILE() in SpMatrixLib_Helpers.c to
+      write out the matrix to a more helpful MATLAB m-file.
+      Original version created a script m-file that defined
+      vectors r, c, x (row indices, col indices, values). New
+      version creates a function m-file that returns the sparse
+      matrix.
+
+7/3/08
+    - Fix to allow handling of user variables with any name, not
+      just 'z'.
+    - Added workaround to fix bug with pimul consistency with MINOPF.
+      MINOPF adds a dummy row to pimul for piecewise linear costs
+      only when the problem includes at least one piecewise linear
+      cost. The TSPOPF MEX files always add this row, so we now
+      strip it out when there are no piecewise linear costs.
+
+5/22/08
+    - Updated for major refactorization of OPF implementation in
+      MATPOWER.
+
+5/9/08
+    - Fixed bug related to limits on z vars.
+    - Fixed bug related to linear constraints unbounded below.
+
+5/2/08
+    - Move input arg processing to opf_args.m.
+
+
+Version 1.0
+-----------
+
+9/25/07
+    - Released version 1.0.
+    - Build 14
+    - Updated date & version number.
+
+9/14/07
+    - Build 13
+    - Turned off DEBUG on Windows build to make sure it works on
+      machines without the debug libraries.
+
+9/12/07
+    - Build 12
+    - Fixed memory tromping bug in csrc2cscSPMATRIX().
+
+9/11/07
+    - Build 11
+    - Fixed bug in SimPSERC.c:neutralStart() where all voltage
+      angles, including non-zero reference angles, got set to zero.
+
+8/14/07
+    - Build 10
+    - Fixed bugs in SCOPF_Cost1stDiff(), SCOPF_Cost2ndDiff() and
+      SpMatVecProduct() that caused crashes when the N matrix in
+      the cost had no non-zero elements.
+    
+8/10/07
+    - Fixed bug in SCOPF_TestConvergence() caused by the assumption
+      that the number of equality constraints equals nb*2.
+
+8/9/07
+    - Implement bounds on z variables in tspopf.m via general linear
+      constraints, since they are not handled by the MEX files.
+    - VERBOSE = 1 now prints version info.
+    - Added some initialization of *_DEBUG variables for consistency.
+    - Fixed pimul ordering in MEX file and removed corresponding
+      workarounds in tspopf.m. Added multipliers on variable bounds.
+    - Added explicit handling of linear equality constraints in the
+      MEX files.
+
+7/18/07
+    - Build 09
+    - Removed duplicate call to freeSPMATRIX(&ptrOPT->IPML2ndDiff)
+      in freeOPT() in OPT.c.
+    - Added zl and zh to MEX interface and call to SCOPF_Init(),
+      not yet used by solvers.
+    - Fixed bug where number of z variables was determined from N
+      instead of A.
+
+7/16/07
+    - Build 08.
+    - Added z to xr return variable.
+
+7/6/07
+    - Added ability in tspopf.m to specify bounds on user variables
+      via new input arguments zl, zh (not yet implemented in the
+      MEX files).
+
+6/26/07
+    - Build 07
+    - INCOMPATIBLE CHANGE: Changed the sign convention used for
+      phase shifters to be consistent with PTI, PowerWorld, PSAT, etc.
+      E.g. A phase shift of 10 deg now means the voltage at the "to"
+      end is delayed by 10 degrees.
+
+6/13/07
+    - Build 06
+        Linux version now built against MATLAB 6.5 (was 6.1).
+        PPC Mac version now built with gcc 4.0.1 (was 3.3).
+
+6/8/07
+    - Build 05
+    - Changed all printf() calls to mexPrintf(), added #include "mex.h"
+      to Source/OPT.c.
+    - Updated minimum requirements to MATLAB 6.5 (7.3 for TRALMOPF).
+
+6/7/07
+    - Build 04
+    - Added temporary workaround in tspopf.m to allow slack in constant
+      power factor constraint for dispatchable loads. Having the upper
+      and lower constraints equal to one another seems to cause
+      numerical problems for PDIPM.
+    - Added workaround in tspopf.m for incorrect ordering of pimul
+      values for linear constraints, by eliminating unbounded cases
+      and converting remaining constraints into the form A*x <= u,
+      where u is finite. This returns pimul in a known order we can
+      use to construct the pimul we want.
+    - Fixed bugs in handling of multipliers for general PQ capability
+      curves (also in fmincopf.m and mopf.m).
+
+6/1/07
+    - Set default *_FEASTOL parameters by OPF_VIOLATION.
+    - Added a workaround in tspopf.m for the fact that MEX files have V
+      before theta in the ordering of vars.
+    - Build 03
+      (pimul for linear constraints still has incorrect order due to
+       internal elimination of unbounded constraints)
+    - Fixed scaling of pimul for linear constraints (divide by
+      SCOPF_OPT.CostScale).
+    - Fixed an indexing typo and sign for pimul for linear constraints.
+    - Build 02
+    - Updates from Harry to fix pimul issues.
+
+5/31/07
+    - Added lines to tspopf.m to copy columns from input to output gen
+      and branch matrices (missed by MEX files).
+    - Changed all && and || to & and | respectively (to potentially
+      support MATLAB < 6.5).
+    - Build 01
