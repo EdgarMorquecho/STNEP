@@ -2,42 +2,41 @@ function [xopt,fxopt,fevalcount, FOPT, RunStats,C_FINAL_CADA_ETAPA,Comp_Indu_Cap
         MaxIt,Max_FES,SS,dim,Xmin,Xmax,Valor_min_referencia, nexp, fhd, sistema,...
         incluir_contingencias,incluir_perdidas,Contin_Segun_Dimensi_Final,factor_perdidas,compensacion_anual_optim,...
         landa,Numero_iter_sin_cambiar,Metaheuristica_Usada,Particle_Number_original,opcion,varargin)
-
  Acc = 1e-3; % Precision Deseada
- RunStats = [ ]; % Matriz de estad韘ticas promediadas
-%% INICIALIZACI覰 DE LOS PAR罬ETROS DE DOBLE MUTACI覰(DE)
+ RunStats = [ ]; % Matriz de estad铆sticas promediadas
+%% INICIALIZACI脫N DE LOS PAR脕METROS DE DOBLE MUTACI脫N(DE)
  chi = 0.729; % Coeficiente de constriccion
  c1 = 2.05; % Parametro Cognitivo
  c2 = 2.05; % Parametro Social
  NR = 1; % Radio de vecindad (Se debe cumplir que NR < SS)
  Vmin=repmat(Xmin,1,SS);
  vmax = 0.5*(Xmax-Vmin); % Velocidad Maxima 
-%% INICIALIZACI覰 DE VECTORES Y MATRICES NECESARIAS EN EL ALGORITMO        
-xopt=zeros(dim,nexp); % Matriz que almacena la mejor topolog韆 en cada iteraci髇
-FOPT=zeros(MaxIt,nexp);      % Matriz que almacena el costo de la mejor topologia en cada iteraci髇
+%% INICIALIZACI脫N DE VECTORES Y MATRICES NECESARIAS EN EL ALGORITMO        
+xopt=zeros(dim,nexp); % Matriz que almacena la mejor topolog铆a en cada iteraci贸n
+FOPT=zeros(MaxIt,nexp);      % Matriz que almacena el costo de la mejor topologia en cada iteraci贸n
 iteraciones_cada=zeros(MaxIt,nexp);
-mpc=loadcase(sistema);  % carga algunas variables necesarias del sistema de prueba bajo estudio esta es una funci髇 de matpower 
-Comp_Indu_Capa_inicial=mpc.bus(:,6); % lectura para establecer una dimensi髇 de acuerdo a la mpc.bus
+mpc=loadcase(sistema);  % carga algunas variables necesarias del sistema de prueba bajo estudio esta es una funci贸n de matpower 
+Comp_Indu_Capa_inicial=mpc.bus(:,6); % lectura para establecer una dimensi贸n de acuerdo a la mpc.bus
 Compensacion_final_suma=ones(size(Comp_Indu_Capa_inicial,1),nexp); % establecer una dimension de acuerdo a la mpc.bus
-fevalcount=zeros(1,nexp);  
+fevalcount=zeros(1,nexp);
+        Eliminar_linea_cara=1;
+        Elimina_linea_innecesaria_contingencias=1; 
  %===================================
- % Lazo del n鷐ero de experimentos
+ % Lazo del n煤mero de experimentos
  %===================================
  for T = 1:nexp 
     tic
     clear containers.Map ME.identifier MapEdgesLocal MapEdgesLocal_2
-    MapEdgesLocal = containers.Map(); 
-    MapEdgesLocal_2 = containers.Map();   
-    MapEdgesLocal_3 = containers.Map(); 
+      Costos= mpc.ne_branch(:,14); 
 %% Inicializacion de la velocidad del enjambre    
     vel = (2*rand(dim, SS)).*(Xmax/2)-(Xmax/2); %Velocidad del enjambre inicial      
 %% INICIALIZAR PARAMETROS
-    success = 0; % Bandera de 閤ito
+    success = 0; % Bandera de 茅xito
     iter = 1; % Contador de iteraciones
-    fevalcount_dina = 0; % Contador del # del Evaluaciones de la Funci髇 Objetivo
+    fevalcount_dina = 0; % Contador del # del Evaluaciones de la Funci贸n Objetivo
     STOP = 0; % Bandera de parada del experimento
-    contador=0; % Contador de valor m韓imo repetido para incorporar el algoritmo del chaos
-    contador_parada=0; % Inicializaci髇 del contador del numero de veces que se repite el valor minimo sin cambiar
+    contador=0; % Contador de valor m铆nimo repetido para incorporar el algoritmo del chaos
+    contador_parada=0; % Inicializaci贸n del contador del numero de veces que se repite el valor minimo sin cambiar
                        
 %% Inicializacion de matrices para almacenar la compensacion shunt
     Comp_Indu_Capa_etap=zeros(size(Comp_Indu_Capa_inicial,1),SS);% falta hallar la dimencion de la matriz 
@@ -54,84 +53,43 @@ fevalcount=zeros(1,nexp);
     Costo_despacho_lineas_min=zeros(dim,1);
     Costo_despacho_lineas_max=zeros(dim,1);
 
-%% Llamar a funci髇 creacioninicial para obtener soluciones iniciales
+%% Llamar a funci贸n creacioninicial para obtener soluciones iniciales
 [poblacion,fevalcount_creacion]=creacioninicial(fhd,...
 sistema,Comp_Indu_Capa_etap,Contin_Segun_Dimensi_Final,...
 incluir_contingencias,incluir_perdidas,factor_perdidas,...
 compensacion_anual_optim,landa,Comp_Indu_Capa_inicial,...      
 SS,Xmin,Xmax,dim,opcion); 
     bestpos =poblacion; % mejor posicion inicial 
-%% Identificar individuos repwetidos y evaluar individuos no repetidos            
-    Edges=cell(SS,11);% Matriz para actualizar los individuos repetidos      
-%% Identificar indiviudos repetidos    
-        for i=1:SS
-            try
-                P_no_eval(:,1)=poblacion(:,i);
-                key=sprintf('%d;', P_no_eval);
-                sprintf('key %s\n', key);
-                value = MapEdgesLocal(key);
-                value2 = MapEdgesLocal_2(key);            
-                costo_lineas(i)=value(1);
-                penalizacion(i)=value(2);
-                solucion_compe(:,i)=value2(:,1);
-                Eva(i)=0; 
-            catch ME
-                if (strcmp(ME.identifier,'MATLAB:Containers:Map:NoKey') || strcmp(ME.identifier,'MATLAB:Containers:TypeMismatch'))      
-                   Edges(i,1)={key};
 
-                else
-                    fprintf('Que paso? %s\n', ME.identifier);
-                end
-            end                     
-        end 
     %% Evaluar el flujo optimo de potencia para cada individuos en cada etapa
         for i=1:SS
-            if (~isempty(Edges{i,1}))
-                [costo_lineas(i),penalizacion(i),Eva(i),solucion_compe(:,i),angulo_buses_Etapa(:,i),...
-                Reactancia_Usada(:,i),Resistencia_Usada(:,i),Indice_flujo(:,i),losses_linea(:,i),Costo_despacho_lineas_min(:,i),...
-                Costo_despacho_lineas_max(:,i)]=feval(fhd,i,poblacion(:,i),poblacion,...
+                [costo_lineas(i),penalizacion(i),Eva(i),solucion_compe(:,i)]=feval(fhd,i,poblacion(:,i),poblacion,...
                 sistema,Comp_Indu_Capa_etap,Contin_Segun_Dimensi_Final,...
                 incluir_contingencias,incluir_perdidas,factor_perdidas,...
                 compensacion_anual_optim,landa,Comp_Indu_Capa_inicial,...      
-                SS);     
-            end        
+                SS);            
         end 
 
-    %% Actualizar la compensaci髇 shunt requerida en la etapa Qp para la topolog韆 i       
+    %% Actualizar la compensaci贸n shunt requerida en la etapa Qp para la topolog铆a i       
         for i=1:SS
             Comp_Indu_Capa_etap(:,i)=solucion_compe(:,i);
-            if (~isempty(Edges{i,1}))
-                Edges(i,2:end)={costo_lineas(i) penalizacion(i) solucion_compe(:,i) angulo_buses_Etapa(:,i)...
-                Reactancia_Usada(:,i) Resistencia_Usada(:,i) Indice_flujo(:,i) losses_linea(:,i)...
-                Costo_despacho_lineas_min(:,i) Costo_despacho_lineas_max(:,i)}; 
-            end 
         end
-    %% Actualizar el n鷐ero de evaluaciones de la funci髇 objetivo     
+    %% Actualizar el n煤mero de evaluaciones de la funci贸n objetivo     
     fevalcount_dina=sum(Eva(+1:SS))+fevalcount_dina;    
 
-   
-%% Guardar soluciones no repetidas   
-    for i=1:SS
-        if (~isempty(Edges{i,1}))
-            MapEdgesLocal_2(Edges{i,1})=[Edges{i,4}];
-            MapEdgesLocal_3(Edges{i,1})=[Edges{i,6} Edges{i,7} Edges{i,8} Edges{i,9} Edges{i,10} Edges{i,11}];             
-            MapEdgesLocal(Edges{i,1}) = [Edges{i,2} Edges{i,3} ];
-        end
-    end
-%% Actualizar el valor de costo total (l韓eas y penalizaci髇) para todas las etapas n_anos
+%% Actualizar el valor de costo total (l铆neas y penalizaci贸n) para todas las etapas n_anos
     f_costo_X=zeros(1,SS);
     for i=1:SS
         f_costo_X(i)=costo_lineas(i)+penalizacion(i);            
     end 
 
-%% ORDENAR LOS INDIVIDUOS EN FUNCI覰 DEL COSTO   
+%% ORDENAR LOS INDIVIDUOS EN FUNCI脫N DEL COSTO   
     [fxopt, posicion_mejor] = min(f_costo_X);% Ordenar costos de cada invidivuo en orden ascendente 
-    f_costo_best=fxopt;% Mejor valor de la funcion objetivo de la iteracion actual
-    FOPT(iter,T)=f_costo_best;% Guardar la mejor salucion actual en FOPT
+    FOPT(iter,T)=fxopt;% Guardar la mejor salucion actual en FOPT
 
          
-%% Actualizaci髇 de la mejor topolog韆 y su compensaci髇 
-    xopt(:,T)=poblacion(:,posicion_mejor); %topolog韆s que proporciona la mejor solucion para el estado dinamico       
+%% Actualizaci贸n de la mejor topolog铆a y su compensaci贸n 
+    xopt(:,T)=poblacion(:,posicion_mejor); %topolog铆as que proporciona la mejor solucion para el estado dinamico       
     Compensacion_final_suma(:,T)=Comp_Indu_Capa_etap(:,posicion_mejor);  
     iteraciones_cada(iter,T)=fevalcount_dina;  
 %% Actualizar indices de las mejores paticulas por vecindad
@@ -151,11 +109,11 @@ SS,Xmin,Xmax,dim,opcion);
          end
      end       
 %======================
-% LAZO DE EVOLUCI覰
+% LAZO DE EVOLUCI脫N
 %======================
  while (STOP == 0) 
      
-cost_ant=f_costo_best;      
+cost_ant=fxopt;      
          
 %% ACTUALIZAR CONTADOR DE ITERACIONES
          iter = iter+1;
@@ -199,68 +157,44 @@ cost_ant=f_costo_best;
                 poblacion(k,i)=Xmax(k,i);                      
             end                                
         end                                                         
-    end  
-%% Compensaci髇 shunt
+    end 
+%% Determinar si el indiivduo actual presenta mejorvalor por adicion de lineas que el individuo anterior      
+   ind_eval=zeros(1,SS);
+   costo_temp=zeros(1,SS);
+          for i=1:SS
+              [costo_temp(i)]=costo_adicion_MT(poblacion(:,i),sistema,dim,Costos);
+              if costo_temp(i)<f_costo_X(i)
+                  ind_eval(i)=i;
+              else
+                  ind_eval(i)=0;
+              end
+              f_U(i)=f_costo_X(i);        
+          end      
+  
+%% Compensaci贸n shunt
          Comp_Indu_Capa_etap1=Comp_Indu_Capa_etap;       
-         Edges = cell(SS,11);
-         Eva=zeros(1,SS);        
-%% Identificar individuos repetidos y evaluar individuos no repetidos      
-         for i=1:SS           
-             try
-                 P_no_eval(:,1)=poblacion(:,i);
-                 key=sprintf('%d;', P_no_eval);
-                 sprintf('key %s\n', key);
-                 value = MapEdgesLocal(key);
-                 value2 = MapEdgesLocal_2(key);            
-                 costo_lineas(i)=value(1);
-                 penalizacion(i)=value(2);
-                 solucion_compe(:,i)=value2(:,1);
-                 Eva(i)=0; 
-             catch ME
-                if (strcmp(ME.identifier,'MATLAB:Containers:Map:NoKey') || strcmp(ME.identifier,'MATLAB:Containers:TypeMismatch'))      
-                   Edges(i,1)={key}; 
-                else
-                    fprintf('Que paso? %s\n', ME.identifier);
-                end
-             end
-         end              
+         Eva=zeros(1,SS);                     
 %% Evaluar el flujo optimo de potencia para cada individuos en cada etapa
-              parfor i=1:SS
-                 if (~isempty(Edges{i,1}))
-                    [costo_lineas(i), penalizacion(i),Eva(i),solucion_compe(:,i),angulo_buses_Etapa(:,i),...
-                    Reactancia_Usada(:,i),Resistencia_Usada(:,i),Indice_flujo(:,i),losses_linea(:,i),Costo_despacho_lineas_min(:,i),...
-                    Costo_despacho_lineas_max(:,i)]=feval(fhd,i, poblacion(:,i),poblacion,...
+            parfor i=1:SS
+                if i==ind_eval(i) 
+                    [costo_lineas(i), penalizacion(i),Eva(i),solucion_compe(:,i)]=feval(fhd,i, poblacion(:,i),poblacion,...
                     sistema,Comp_Indu_Capa_etap,Contin_Segun_Dimensi_Final,...
                     incluir_contingencias,incluir_perdidas,factor_perdidas,...
                     compensacion_anual_optim,landa,Comp_Indu_Capa_inicial,...      
-                   SS);     
-                 end                                      
-              end 
-%% Actualizar la compensacion shunt requeridad en la etapa Qp para la topologia i      
-             for i=1:SS
-                 Comp_Indu_Capa_etap(:,i)=solucion_compe(:,i);
-                 if (~isempty(Edges{i,1}))
-                    Edges(i,2:end)={costo_lineas(i) penalizacion(i) solucion_compe(:,i) angulo_buses_Etapa(:,i)...
-                    Reactancia_Usada(:,i) Resistencia_Usada(:,i) Indice_flujo(:,i) losses_linea(:,i)...
-                    Costo_despacho_lineas_min(:,i) Costo_despacho_lineas_max(:,i)};  
-                 end 
-             end 
-%% Actualizar el contador del n鷐ero de evaluaciones de la funci髇 objetivo             
-              fevalcount_dina=sum(Eva(1:SS))+fevalcount_dina;    
-%% Guardar soluciones no repetidas
-         for i=1:SS
-            if (~isempty(Edges{i,1}))
-                MapEdgesLocal_2(Edges{i,1})=[Edges{i,4}];
-                MapEdgesLocal_3(Edges{i,1})=[Edges{i,6} Edges{i,7} Edges{i,8} Edges{i,9} Edges{i,10} Edges{i,11}];                     
-                MapEdgesLocal(Edges{i,1}) = [Edges{i,2} Edges{i,3} ];
-            end
-         end         
-                     
-%% CALCULO DEL COSTO DE LA FUNCION OBJETIVO
+                    SS); 
+                end                                                         
+            end            
+    %% Actualizar la compensaci贸n shunt requerida en la etapa Qp para la topolog铆a i       
         for i=1:SS
-            f_U(i)=costo_lineas(i)+penalizacion(i);            
+            if i==ind_eval(i) 
+                Comp_Indu_Capa_etap(:,i)=solucion_compe(:,i);
+                f_U(i)=costo_lineas(i)+penalizacion(i);            
+            end             
         end
-%% Aplicar selecci髇 (DE)            
+%% Actualizar el contador del n煤mero de evaluaciones de la funci贸n objetivo             
+        fevalcount_dina=sum(Eva(1:SS))+fevalcount_dina;           
+                     
+%% Aplicar selecci贸n (DE)            
         for i=1:SS    
             if f_U(i)<f_costo_X(i)
                 f_costo_X(i)=f_U(i);
@@ -268,7 +202,8 @@ cost_ant=f_costo_best;
             else
                 Comp_Indu_Capa_etap(:,i)=Comp_Indu_Capa_etap1(:,i);           
             end
-        end         
+        end 
+           
 %%  ORDENAR LOS INDIVIDUOS EN FUNCION DEL COSTO       
     [fxopt, posicion_mejor]=min(f_costo_X);     
 
@@ -315,7 +250,7 @@ cost_ant=f_costo_best;
 %% VERIFICAR CRITRERIO DE PARADA
     if ((fevalcount_dina >= Max_FES)||(iter >= MaxIt)||(fxopt <= Valor_min_referencia+Acc)||contador_parada>Numero_iter_sin_cambiar)
         STOP = 1;
-        if (f_costo_best <= Valor_min_referencia+Acc)
+        if (fxopt <= Valor_min_referencia+Acc)
             success = 1;
         end
     end
@@ -348,4 +283,3 @@ Tiempo_total_de_simlacion);
  fprintf('EVALUACIONES DE LA FUNCION OBJETIVO DEL ULTIMO EXPERIMENTO= %8.2f\n', fevalcount);
  
 end
- 
